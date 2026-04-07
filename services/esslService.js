@@ -2,9 +2,9 @@ require('dotenv').config();
 
 let ZKLib;
 try {
-  ZKLib = require('zklib');
+  ZKLib = require('node-zklib');
 } catch (e) {
-  console.warn('zklib not installed. Biometric features disabled. Run: npm install zklib');
+  console.warn('node-zklib not installed. Biometric features disabled. Run: npm install node-zklib');
 }
 
 const { Member, Attendance } = require('../models');

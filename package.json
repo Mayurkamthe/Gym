@@ -17,8 +17,8 @@
     "method-override": "^3.0.0",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.6.5",
-    "sequelize": "^6.35.1",
-    "zklib": "0.0.6"
+    "node-zklib": "^1.0.3",
+    "sequelize": "^6.35.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

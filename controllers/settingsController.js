@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 let ZKLib;
-try { ZKLib = require('zklib'); } catch (e) {}
+try { ZKLib = require('node-zklib'); } catch (e) {}
 
 const { getDeviceList } = require('../services/esslService');
 
@@ -68,7 +68,7 @@ const index = (req, res) => {
     title: 'eSSL / Device Settings',
     env,
     devices,
-    zkInstalled: !!ZKLib,
+    zkInstalled: !!ZKLib, zkVersion: 'node-zklib',
   });
 };
 
