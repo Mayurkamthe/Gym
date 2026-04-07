@@ -1,0 +1,287 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="fw-700 mb-1">Settings</h5>
+    <p class="text-muted small mb-0">eSSL / ZKTeco device connections & gym configuration</p>
+  </div>
+  <% if (!zkInstalled) { %>
+    <span class="badge bg-warning text-dark px-3 py-2">
+      <i class="bi bi-exclamation-triangle me-1"></i>zklib not installed — run <code>npm install zklib</code>
+    </span>
+  <% } else { %>
+    <span class="badge bg-success-subtle text-success px-3 py-2">
+      <i class="bi bi-check-circle-fill me-1"></i>zklib ready
+    </span>
+  <% } %>
+</div>
+
+<div class="row g-4">
+
+  <!-- ── LEFT COLUMN ── -->
+  <div class="col-lg-7">
+
+    <!-- ── eSSL Device List ── -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-bottom d-flex align-items-center justify-content-between">
+        <h6 class="fw-700 mb-0"><i class="bi bi-fingerprint text-primary me-2"></i>eSSL / ZKTeco Devices</h6>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
+          <i class="bi bi-plus-lg me-1"></i>Add Device
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <% if (!devices.length) { %>
+          <div class="text-center text-muted py-5">
+            <i class="bi bi-hdd-network fs-1 d-block mb-2 text-secondary"></i>
+            No devices configured.<br/>
+            <span class="small">Add a device using the button above, or set <code>ESSL_DEVICES</code> in your <code>.env</code></span>
+          </div>
+        <% } else { %>
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr><th>IP Address</th><th>Port</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            <% devices.forEach(d => { %>
+            <tr id="row-<%= d.ip.replace(/\./g,'_') %>_<%= d.port %>">
+              <td class="fw-600"><i class="bi bi-hdd-network me-2 text-primary"></i><%= d.ip %></td>
+              <td><span class="badge bg-light text-dark"><%= d.port %></span></td>
+              <td>
+                <span class="device-status badge bg-secondary-subtle text-secondary" id="status-<%= d.ip.replace(/\./g,'_') %>_<%= d.port %>">
+                  <i class="bi bi-circle me-1"></i>Not tested
+                </span>
+              </td>
+              <td class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-info"
+                  onclick="testDevice('<%= d.ip %>', '<%= d.port %>', '<%= d.ip.replace(/\./g,'_') %>_<%= d.port %>')"
+                  title="Ping device">
+                  <i class="bi bi-wifi"></i> Test
+                </button>
+                <form action="/settings/devices/remove" method="POST" class="d-inline"
+                      onsubmit="return confirm('Remove device <%= d.ip %>:<%= d.port %>?')">
+                  <input type="hidden" name="entry" value="<%= d.ip %>:<%= d.port %>"/>
+                  <button class="btn btn-sm btn-outline-danger" title="Remove"><i class="bi bi-trash"></i></button>
+                </form>
+              </td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+        <% } %>
+      </div>
+      <% if (devices.length) { %>
+      <div class="card-footer bg-transparent d-flex gap-2">
+        <button class="btn btn-sm btn-outline-primary" onclick="testAllDevices()">
+          <i class="bi bi-broadcast me-1"></i>Test All Devices
+        </button>
+      </div>
+      <% } %>
+    </div>
+
+    <!-- ── Raw ESSL_DEVICES string editor ── -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-bottom">
+        <h6 class="fw-700 mb-0"><i class="bi bi-terminal text-secondary me-2"></i>Raw Device String</h6>
+      </div>
+      <form action="/settings/essl" method="POST">
+        <div class="card-body">
+          <label class="form-label fw-600">ESSL_DEVICES <span class="text-muted fw-400">(comma-separated ip:port)</span></label>
+          <input type="text" name="essl_devices" class="form-control font-monospace"
+            value="<%= env.ESSL_DEVICES || '' %>"
+            placeholder="192.168.1.201:4370,192.168.1.202:4370"/>
+          <div class="form-text">Separate multiple devices with a comma. Port 4370 is the ZKTeco default.</div>
+        </div>
+        <div class="card-footer bg-transparent d-flex gap-2">
+          <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-floppy me-1"></i>Save</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Gym Info ── -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-bottom">
+        <h6 class="fw-700 mb-0"><i class="bi bi-building me-2 text-success"></i>Gym Information</h6>
+      </div>
+      <form action="/settings/essl" method="POST">
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-600">Gym Name</label>
+              <input type="text" name="gym_name" class="form-control"
+                value="<%= env.GYM_NAME || '' %>" placeholder="PowerFit Gym"/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Gym Phone</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                <input type="text" name="gym_phone" class="form-control"
+                  value="<%= env.GYM_PHONE || '' %>" placeholder="+91-9876543210"/>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer bg-transparent">
+          <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-floppy me-1"></i>Save Gym Info</button>
+        </div>
+      </form>
+    </div>
+
+  </div><!-- /left col -->
+
+  <!-- ── RIGHT COLUMN ── -->
+  <div class="col-lg-5">
+
+    <!-- ── Connection Guide ── -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-bottom">
+        <h6 class="fw-700 mb-0"><i class="bi bi-info-circle text-info me-2"></i>Setup Guide</h6>
+      </div>
+      <div class="card-body">
+        <ol class="small text-muted mb-0" style="line-height:2">
+          <li>Connect your ZKTeco / eSSL device to the <strong>same LAN</strong> as this server</li>
+          <li>Find the device IP from its front panel: <em>Menu → Comm → IP Address</em></li>
+          <li>Default port is <strong>4370</strong> (TCP). Do not change unless your device requires it</li>
+          <li>Add the device above and click <strong>Test</strong> to verify connectivity</li>
+          <li>On the device, enrol the member's fingerprint. Note the assigned <strong>User ID (UID)</strong></li>
+          <li>In the <strong>Member Profile → Edit</strong>, set <em>Fingerprint ID</em> to that UID</li>
+          <li>Go to <strong>Attendance → Sync Biometric</strong> to pull logs</li>
+          <li>Expired members are <strong>auto-removed</strong> from the device — door blocked instantly</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- ── Change Admin Credentials ── -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-bottom">
+        <h6 class="fw-700 mb-0"><i class="bi bi-shield-lock me-2 text-warning"></i>Admin Credentials</h6>
+      </div>
+      <form action="/settings/admin" method="POST">
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label fw-600">Username</label>
+            <input type="text" name="admin_username" class="form-control"
+              value="<%= env.ADMIN_USERNAME || '' %>" required/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600">New Password <span class="text-muted fw-400 small">(leave blank to keep current)</span></label>
+            <input type="password" name="admin_password" class="form-control" placeholder="New password"/>
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-600">Confirm Password</label>
+            <input type="password" name="confirm_password" class="form-control" placeholder="Repeat new password"/>
+          </div>
+        </div>
+        <div class="card-footer bg-transparent">
+          <button type="submit" class="btn btn-warning btn-sm"
+            onclick="return confirm('Changing credentials will log you out. Continue?')">
+            <i class="bi bi-key me-1"></i>Update Credentials
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Current .env preview ── -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-bottom">
+        <h6 class="fw-700 mb-0"><i class="bi bi-file-earmark-code me-2 text-secondary"></i>Active Configuration</h6>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0 small">
+          <tbody>
+            <% const showKeys = ['GYM_NAME','GYM_PHONE','ESSL_DEVICES','DB_HOST','DB_NAME','PORT']; %>
+            <% showKeys.forEach(k => { %>
+              <% if (env[k] !== undefined) { %>
+              <tr>
+                <td class="ps-3 text-muted font-monospace" style="width:40%"><%= k %></td>
+                <td class="fw-600 pe-3">
+                  <% if (k === 'ESSL_DEVICES') { %>
+                    <% const devs = (env[k] || '').split(',').filter(Boolean); %>
+                    <% devs.forEach(dv => { %><span class="badge bg-info-subtle text-info me-1"><%= dv.trim() %></span><% }) %>
+                    <% if (!devs.length) { %><span class="text-muted">—</span><% } %>
+                  <% } else { %>
+                    <%= env[k] || '—' %>
+                  <% } %>
+                </td>
+              </tr>
+              <% } %>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /right col -->
+</div>
+
+<!-- ── Add Device Modal ── -->
+<div class="modal fade" id="addDeviceModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-700"><i class="bi bi-hdd-network me-2 text-primary"></i>Add eSSL Device</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/settings/devices/add" method="POST">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-600">Device IP Address <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-hdd-network"></i></span>
+              <input type="text" name="ip" class="form-control font-monospace"
+                placeholder="192.168.1.201" pattern="\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}" required/>
+            </div>
+            <div class="form-text">Must be on the same network as this server</div>
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-600">Port</label>
+            <input type="number" name="port" class="form-control" value="4370" min="1" max="65535"/>
+            <div class="form-text">Default ZKTeco port is <strong>4370</strong></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Device</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+async function testDevice(ip, port, key) {
+  const badge = document.getElementById('status-' + key);
+  badge.className = 'device-status badge bg-warning-subtle text-warning';
+  badge.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Testing…';
+
+  try {
+    const res = await fetch('/settings/devices/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip, port })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      badge.className = 'device-status badge bg-success-subtle text-success';
+      badge.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i>Online · ${data.latency}ms`;
+    } else {
+      badge.className = 'device-status badge bg-danger-subtle text-danger';
+      badge.innerHTML = `<i class="bi bi-x-circle-fill me-1"></i>${data.error || 'Unreachable'}`;
+    }
+  } catch (e) {
+    badge.className = 'device-status badge bg-danger-subtle text-danger';
+    badge.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i>Request failed';
+  }
+}
+
+async function testAllDevices() {
+  const rows = document.querySelectorAll('[id^="status-"]');
+  rows.forEach(b => {
+    const parts = b.id.replace('status-', '').split('_');
+    const port = parts.pop();
+    const ip = parts.join('.').replace(/_/g, '.');
+    testDevice(ip, port, b.id.replace('status-', ''));
+  });
+}
+</script>
+
+<%- include('../partials/footer') %>

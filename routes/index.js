@@ -11,6 +11,7 @@ const offerC = require('../controllers/offerController');
 const billingC = require('../controllers/billingController');
 const attendanceC = require('../controllers/attendanceController');
 const reportC = require('../controllers/reportController');
+const settingsC = require('../controllers/settingsController');
 const upload = require('../config/multer');
 
 // Auth
@@ -70,5 +71,13 @@ router.post('/attendance/:id/delete', isAuthenticated, attendanceC.destroy);
 
 // Reports
 router.get('/reports', isAuthenticated, reportC.index);
+
+// Settings
+router.get('/settings', isAuthenticated, settingsC.index);
+router.post('/settings/essl', isAuthenticated, settingsC.saveEssl);
+router.post('/settings/devices/add', isAuthenticated, settingsC.addDevice);
+router.post('/settings/devices/remove', isAuthenticated, settingsC.removeDevice);
+router.post('/settings/devices/test', isAuthenticated, settingsC.testDevice);
+router.post('/settings/admin', isAuthenticated, settingsC.saveAdmin);
 
 module.exports = router;
