@@ -6,15 +6,39 @@ A complete production-ready Gym Management System for Indian gyms built with **N
 
 ## ✨ Features
 
-- 🔐 **Secure Admin Login** (credentials in `.env`, session-based)
+- 🔐 **Secure Admin Login** — credentials in `.env`, session-based
 - 👥 **Member Management** — CRUD, photo upload, expiry tracking
 - 📋 **Enquiry System** — Lead tracking with follow-up dates & status
 - 💳 **Billing / Payments** — Partial payments, due tracking, auto expiry
 - 🏷️ **Offers & Discounts** — Flat / percentage offers applied at billing
 - 📊 **Monthly Reports** — Revenue, member stats, attendance charts
 - 🖐️ **Attendance** — Manual + eSSL/ZKTeco biometric sync (multi-device)
+- 🔒 **Auto Door Control** — Expired members auto-removed from biometric device; renewed members re-enrolled automatically
+- ⏰ **Daily Expiry Scheduler** — Runs on startup and every 24h to expire overdue members and remove from all devices
 - 📱 **Indian Features** — WhatsApp & Call buttons, ₹ currency, expiry alerts
 - ⚡ **Auto DB Setup** — Sequelize ORM creates all tables automatically
+
+---
+
+## 🚪 Biometric Door Access Flow
+
+```
+Member enrolls fingerprint on device
+        ↓
+Admin assigns fingerprint_id to member profile
+        ↓
+Member active → door allowed  ✅
+        ↓
+Membership expired → member auto-removed from device → door blocked  🔒
+        ↓
+Member renews (new bill) → auto re-enrolled on device → door allowed again  ✅
+```
+
+**Automatic expiry runs:**
+- On server startup
+- Every 24 hours
+- On every Sync Biometric click
+- On manual "Check Expiry" button in Attendance page
 
 ---
 
@@ -35,24 +59,23 @@ npm install
 ```bash
 cp .env.example .env
 ```
-Edit `.env` and set your values:
+Edit `.env`:
 ```
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=admin@123
 DB_NAME=gym_management
+ESSL_DEVICES=192.168.1.201:4370
+GYM_NAME=PowerFit Gym
 ```
 
-### 4. Create Database in XAMPP
-Open `http://localhost/phpmyadmin` and create a database named `gym_management`.  
+### 4. Create Database
+Open `http://localhost/phpmyadmin` and create a database named `gym_management`.
 *(Tables are auto-created by Sequelize — no SQL import needed!)*
 
 ### 5. Run
 ```bash
-# Development (auto-restart)
-npm run dev
-
-# Production
-npm start
+npm run dev   # development (auto-restart)
+npm start     # production
 ```
 
 Open **http://localhost:3000** and login!
@@ -63,32 +86,30 @@ Open **http://localhost:3000** and login!
 
 ```
 gym-management/
-├── app.js                  # Express entry point
-├── .env                    # Configuration
+├── app.js                  # Express entry + daily expiry scheduler
 ├── config/
-│   ├── database.js         # Sequelize connection
-│   ├── auth.js             # Auth middleware
-│   └── multer.js           # File upload config
+│   ├── database.js
+│   ├── auth.js
+│   └── multer.js
 ├── models/
-│   ├── Enquiry.js
-│   ├── Member.js
+│   ├── Member.js           # fingerprint_id field
 │   ├── Plan.js
-│   ├── Offer.js
 │   ├── Payment.js
-│   └── Attendance.js
-├── controllers/            # Business logic
-├── routes/
-│   └── index.js            # All routes
+│   ├── Attendance.js
+│   ├── Enquiry.js
+│   └── Offer.js
+├── controllers/
+│   ├── memberController.js # enrol/remove on device on create/update/delete
+│   ├── attendanceController.js # sync + triggerExpiry
+│   ├── billingController.js
+│   ├── dashboardController.js  # doorBlocked stat
+│   └── ...
 ├── services/
-│   ├── billingService.js   # Billing logic + discount calc
-│   └── esslService.js      # ZKTeco biometric sync
-├── views/
-│   ├── partials/           # header.ejs, footer.ejs
-│   └── pages/              # All EJS pages
-└── public/
-    ├── css/style.css
-    ├── js/app.js
-    └── uploads/members/    # Member photos
+│   ├── esslService.js      # ZKTeco sync + enrollOnDevice + removeFromDevice + autoExpireAndRemove
+│   └── billingService.js   # billing + re-enrol on renewal
+├── routes/index.js
+└── views/
+    └── pages/
 ```
 
 ---
@@ -100,13 +121,14 @@ gym-management/
 | `PORT`           | Server port (default: 3000)          |
 | `DB_HOST`        | MySQL host (default: localhost)       |
 | `DB_USER`        | MySQL user (default: root)           |
-| `DB_PASS`        | MySQL password (blank for XAMPP)     |
+| `DB_PASS`        | MySQL password                       |
 | `DB_NAME`        | Database name                        |
 | `ADMIN_USERNAME` | Admin login username                 |
 | `ADMIN_PASSWORD` | Admin login password                 |
 | `SESSION_SECRET` | Express session secret               |
 | `ESSL_DEVICES`   | Biometric device IPs (ip:port,...)   |
 | `GYM_NAME`       | Gym name shown in UI                 |
+| `GYM_PHONE`      | Gym phone for display                |
 
 ---
 
@@ -116,8 +138,11 @@ gym-management/
    ```
    ESSL_DEVICES=192.168.1.201:4370,192.168.1.202:4370
    ```
-2. Assign `fingerprint_id` (device user ID) to each member
-3. Click **"Sync Biometric"** on Attendance page to pull logs
+2. Enrol member's fingerprint directly on the device
+3. Assign the device-assigned **UID** as `fingerprint_id` in member profile
+4. Click **Sync Biometric** on the Attendance page to pull logs
+5. Expired members are **automatically removed** from the device — door is blocked
+6. On renewal (new bill), member is **automatically re-enrolled** — door access restored
 
 ---
 

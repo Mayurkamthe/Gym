@@ -2,7 +2,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
   <a href="/members" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 flex-wrap">
     <a href="tel:<%= member.phone %>" class="btn btn-outline-primary"><i class="bi bi-telephone-fill me-1"></i>Call</a>
     <a href="https://wa.me/91<%= member.phone.replace(/\D/g,'') %>" target="_blank" class="btn btn-success"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>
     <a href="/members/<%= member.id %>/edit" class="btn btn-warning"><i class="bi bi-pencil me-1"></i>Edit</a>
@@ -24,6 +24,7 @@
       <span class="badge <%= isExpired ? 'bg-danger' : member.status === 'active' ? 'bg-success' : 'bg-warning text-dark' %> px-3 py-2">
         <i class="bi bi-circle-fill me-1" style="font-size:8px"></i><%= isExpired ? 'Expired' : member.status %>
       </span>
+
       <hr class="my-3"/>
       <div class="text-start small">
         <div class="d-flex justify-content-between mb-2"><span class="text-muted">Phone</span><span class="fw-600"><%= member.phone %></span></div>
@@ -31,21 +32,44 @@
         <div class="d-flex justify-content-between mb-2"><span class="text-muted">Blood Group</span><span><%= member.blood_group || '—' %></span></div>
         <div class="d-flex justify-content-between mb-2"><span class="text-muted">Plan</span><span class="fw-600 text-primary"><%= member.plan?.name || '—' %></span></div>
         <div class="d-flex justify-content-between mb-2"><span class="text-muted">Joined</span><span><%= member.join_date ? new Date(member.join_date).toLocaleDateString('en-IN') : '—' %></span></div>
-        <div class="d-flex justify-content-between"><span class="text-muted">Expires</span>
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Expires</span>
           <span class="<%= isExpired ? 'text-danger fw-700' : 'text-success fw-600' %>">
             <%= member.expiry_date ? new Date(member.expiry_date).toLocaleDateString('en-IN') : '—' %>
           </span>
         </div>
       </div>
+
+      <hr class="my-3"/>
+      <!-- Fingerprint / Biometric Status -->
+      <div class="text-start small">
+        <div class="fw-700 mb-2"><i class="bi bi-fingerprint me-1 text-primary"></i>Biometric / Door Access</div>
+        <% if (member.fingerprint_id) { %>
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">Fingerprint ID</span>
+            <span class="fw-600 text-info"><%= member.fingerprint_id %></span>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">Door Access</span>
+            <% if (!isExpired && member.status === 'active') { %>
+              <span class="badge bg-success-subtle text-success"><i class="bi bi-unlock-fill me-1"></i>Allowed</span>
+            <% } else { %>
+              <span class="badge bg-danger-subtle text-danger"><i class="bi bi-lock-fill me-1"></i>Blocked</span>
+            <% } %>
+          </div>
+        <% } else { %>
+          <div class="text-muted small"><i class="bi bi-exclamation-circle me-1"></i>No fingerprint enrolled. <a href="/members/<%= member.id %>/edit">Add fingerprint ID</a></div>
+        <% } %>
+      </div>
     </div>
   </div>
+
   <div class="col-lg-8">
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-transparent"><h6 class="fw-700 mb-0"><i class="bi bi-clock-history me-2 text-primary"></i>Payment History</h6></div>
       <div class="card-body p-0">
         <div class="table-responsive">
           <table class="table table-hover mb-0">
-            <thead class="table-light"><tr><th>Invoice</th><th>Plan</th><th>Amount</th><th>Paid</th><th>Due</th><th>Mode</th><th>Date</th></tr></thead>
+            <thead class="table-light"><tr><th>Invoice</th><th>Plan</th><th>Amount</th><th>Paid</th><th>Due</th><th>Mode</th><th>Valid Until</th></tr></thead>
             <tbody>
               <% if (!member.payments.length) { %>
                 <tr><td colspan="7" class="text-center text-muted py-4">No payment records</td></tr>
@@ -60,7 +84,7 @@
                   ₹<%= parseFloat(p.due_amount).toLocaleString('en-IN') %>
                 </td>
                 <td><span class="badge bg-light text-dark small"><%= p.payment_mode %></span></td>
-                <td class="small text-muted"><%= new Date(p.payment_date).toLocaleDateString('en-IN') %></td>
+                <td class="small text-muted"><%= p.end_date ? new Date(p.end_date).toLocaleDateString('en-IN') : '—' %></td>
               </tr>
               <% }) %>
             </tbody>

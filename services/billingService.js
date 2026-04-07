@@ -1,9 +1,7 @@
 const { Payment, Member, Plan, Offer } = require('../models');
 const { Op } = require('sequelize');
+const { enrollOnDevice, getDeviceList } = require('./esslService');
 
-/**
- * Calculate discount based on offer
- */
 const calculateDiscount = (originalAmount, offer) => {
   if (!offer) return { discountAmount: 0, finalAmount: originalAmount };
 
@@ -15,12 +13,12 @@ const calculateDiscount = (originalAmount, offer) => {
   }
 
   const finalAmount = Math.max(0, originalAmount - discountAmount);
-  return { discountAmount: Math.round(discountAmount * 100) / 100, finalAmount: Math.round(finalAmount * 100) / 100 };
+  return {
+    discountAmount: Math.round(discountAmount * 100) / 100,
+    finalAmount: Math.round(finalAmount * 100) / 100,
+  };
 };
 
-/**
- * Create a new payment/billing entry
- */
 const createBilling = async (data) => {
   const { memberId, planId, offerId, paidAmount, paymentMode, paymentDate, transactionRef, notes } = data;
 
@@ -47,10 +45,11 @@ const createBilling = async (data) => {
   const paid = parseFloat(paidAmount);
   const due = Math.max(0, finalAmount - paid);
 
-  // Calculate start/end dates
   const startDate = paymentDate;
   const start = new Date(startDate);
-  const endDate = new Date(start.setDate(start.getDate() + plan.duration_days)).toISOString().split('T')[0];
+  const endDate = new Date(start.setDate(start.getDate() + plan.duration_days))
+    .toISOString()
+    .split('T')[0];
 
   const payment = await Payment.create({
     member_id: memberId,
@@ -70,19 +69,24 @@ const createBilling = async (data) => {
     status: due > 0 ? 'partial' : 'paid',
   });
 
-  // Update member expiry date
+  // Update member: extend expiry, set active
   await member.update({
     expiry_date: endDate,
     plan_id: planId,
     status: 'active',
   });
 
+  // Re-enrol on all devices if member has a fingerprint_id (handles re-activation after expiry)
+  if (member.fingerprint_id) {
+    const devices = getDeviceList();
+    for (const device of devices) {
+      await enrollOnDevice(device, member.fingerprint_id, member.name);
+    }
+  }
+
   return payment;
 };
 
-/**
- * Get active offers for today
- */
 const getActiveOffers = async () => {
   const today = new Date().toISOString().split('T')[0];
   return await Offer.findAll({

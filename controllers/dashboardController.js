@@ -1,6 +1,5 @@
 const { Member, Payment, Attendance, Enquiry } = require('../models');
-const { Op, fn, col, literal } = require('sequelize');
-const sequelize = require('../config/database');
+const { Op, fn, col } = require('sequelize');
 
 const dashboard = async (req, res) => {
   try {
@@ -9,13 +8,12 @@ const dashboard = async (req, res) => {
       .toISOString()
       .split('T')[0];
 
-    // Stats
     const totalMembers = await Member.count();
     const activeMembers = await Member.count({ where: { status: 'active', expiry_date: { [Op.gte]: today } } });
-    const expiredMembers = await Member.count({ where: { expiry_date: { [Op.lt]: today } } });
+    const expiredMembers = await Member.count({ where: { [Op.or]: [{ status: 'expired' }, { expiry_date: { [Op.lt]: today } }] } });
+    const doorBlocked = await Member.count({ where: { [Op.or]: [{ status: { [Op.ne]: 'active' } }, { expiry_date: { [Op.lt]: today } }] } });
     const todayAttendance = await Attendance.count({ where: { date: today } });
 
-    // Monthly revenue
     const revenueResult = await Payment.findOne({
       attributes: [[fn('SUM', col('paid_amount')), 'total']],
       where: { payment_date: { [Op.gte]: firstOfMonth } },
@@ -23,12 +21,10 @@ const dashboard = async (req, res) => {
     });
     const monthlyRevenue = parseFloat(revenueResult?.total || 0);
 
-    // New enquiries this month
     const newEnquiries = await Enquiry.count({
       where: { created_at: { [Op.gte]: firstOfMonth }, status: 'New' },
     });
 
-    // Expiring soon (next 7 days)
     const sevenDays = new Date();
     sevenDays.setDate(sevenDays.getDate() + 7);
     const expiringSoon = await Member.findAll({
@@ -40,14 +36,12 @@ const dashboard = async (req, res) => {
       order: [['expiry_date', 'ASC']],
     });
 
-    // Recent payments
     const recentPayments = await Payment.findAll({
       include: [{ association: 'member', attributes: ['name', 'phone'] }],
       limit: 8,
       order: [['created_at', 'DESC']],
     });
 
-    // Today's attendance list
     const todayList = await Attendance.findAll({
       where: { date: today },
       include: [{ association: 'member', attributes: ['name', 'member_id'] }],
@@ -55,7 +49,6 @@ const dashboard = async (req, res) => {
       order: [['check_in', 'DESC']],
     });
 
-    // Monthly attendance chart data (last 7 days)
     const attendanceChart = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
@@ -67,7 +60,7 @@ const dashboard = async (req, res) => {
 
     res.render('pages/dashboard', {
       title: 'Dashboard',
-      stats: { totalMembers, activeMembers, expiredMembers, todayAttendance, monthlyRevenue, newEnquiries },
+      stats: { totalMembers, activeMembers, expiredMembers, doorBlocked, todayAttendance, monthlyRevenue, newEnquiries },
       expiringSoon,
       recentPayments,
       todayList,
@@ -76,7 +69,14 @@ const dashboard = async (req, res) => {
   } catch (err) {
     console.error(err);
     req.flash('error', 'Failed to load dashboard');
-    res.render('pages/dashboard', { title: 'Dashboard', stats: {}, expiringSoon: [], recentPayments: [], todayList: [], attendanceChart: '[]' });
+    res.render('pages/dashboard', {
+      title: 'Dashboard',
+      stats: {},
+      expiringSoon: [],
+      recentPayments: [],
+      todayList: [],
+      attendanceChart: '[]',
+    });
   }
 };
 

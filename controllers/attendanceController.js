@@ -1,5 +1,5 @@
 const { Attendance, Member } = require('../models');
-const { syncAttendance, markManualAttendance } = require('../services/esslService');
+const { syncAttendance, markManualAttendance, autoExpireAndRemove } = require('../services/esslService');
 const { Op } = require('sequelize');
 
 const index = async (req, res) => {
@@ -17,6 +17,9 @@ const sync = async (req, res) => {
   try {
     const result = await syncAttendance();
     req.flash(result.success ? 'success' : 'error', result.message);
+    if (result.errors && result.errors.length) {
+      req.flash('info', 'Device errors: ' + result.errors.join('; '));
+    }
   } catch (err) {
     req.flash('error', 'Sync failed: ' + err.message);
   }
@@ -40,4 +43,20 @@ const destroy = async (req, res) => {
   res.redirect('/attendance');
 };
 
-module.exports = { index, sync, markManual, destroy };
+/**
+ * Manually trigger expiry check + device removal
+ */
+const triggerExpiry = async (req, res) => {
+  try {
+    const result = await autoExpireAndRemove();
+    req.flash(
+      'success',
+      `Expiry check complete. ${result.removedCount} member(s) expired and removed from devices.`
+    );
+  } catch (err) {
+    req.flash('error', 'Expiry check failed: ' + err.message);
+  }
+  res.redirect('/attendance');
+};
+
+module.exports = { index, sync, markManual, destroy, triggerExpiry };

@@ -65,6 +65,7 @@ router.get('/billing/calculate', isAuthenticated, billingC.calculateApi);
 router.get('/attendance', isAuthenticated, attendanceC.index);
 router.post('/attendance/sync', isAuthenticated, attendanceC.sync);
 router.post('/attendance/manual', isAuthenticated, attendanceC.markManual);
+router.post('/attendance/expire', isAuthenticated, attendanceC.triggerExpiry);
 router.post('/attendance/:id/delete', isAuthenticated, attendanceC.destroy);
 
 // Reports

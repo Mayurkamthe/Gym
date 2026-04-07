@@ -1,7 +1,5 @@
 require('dotenv').config();
 
-// zklib integration for eSSL/ZKTeco devices
-// Install: npm install zklib
 let ZKLib;
 try {
   ZKLib = require('zklib');
@@ -12,10 +10,6 @@ try {
 const { Member, Attendance } = require('../models');
 const { Op } = require('sequelize');
 
-/**
- * Parse device list from .env
- * Format: "ip:port,ip:port"
- */
 const getDeviceList = () => {
   const raw = process.env.ESSL_DEVICES || '';
   return raw
@@ -28,12 +22,8 @@ const getDeviceList = () => {
     });
 };
 
-/**
- * Connect to a single ZKTeco device and fetch attendance logs
- */
 const fetchFromDevice = async (deviceConfig) => {
   if (!ZKLib) throw new Error('zklib not installed');
-
   const zkInstance = new ZKLib(deviceConfig.ip, deviceConfig.port, 10000, 4000);
   try {
     await zkInstance.createSocket();
@@ -47,11 +37,81 @@ const fetchFromDevice = async (deviceConfig) => {
 };
 
 /**
- * Fetch attendance from ALL configured devices and sync to DB
+ * Push a user UID to the ZKTeco device (enrolment)
+ */
+const enrollOnDevice = async (deviceConfig, uid, name) => {
+  if (!ZKLib) throw new Error('zklib not installed');
+  const zkInstance = new ZKLib(deviceConfig.ip, deviceConfig.port, 10000, 4000);
+  try {
+    await zkInstance.createSocket();
+    await zkInstance.setUser(parseInt(uid), uid, name, '', 0, 0);
+    await zkInstance.disconnect();
+    return true;
+  } catch (err) {
+    console.error(`Enrol failed on device ${deviceConfig.ip}`, err.message);
+    return false;
+  }
+};
+
+/**
+ * Remove a user UID from the ZKTeco device (auto-removal on expiry)
+ */
+const removeFromDevice = async (deviceConfig, uid) => {
+  if (!ZKLib) throw new Error('zklib not installed');
+  const zkInstance = new ZKLib(deviceConfig.ip, deviceConfig.port, 10000, 4000);
+  try {
+    await zkInstance.createSocket();
+    await zkInstance.deleteUser(parseInt(uid));
+    await zkInstance.disconnect();
+    return true;
+  } catch (err) {
+    console.error(`Remove failed on device ${deviceConfig.ip}`, err.message);
+    return false;
+  }
+};
+
+/**
+ * Auto-expire members whose expiry_date has passed and remove them from all devices
+ */
+const autoExpireAndRemove = async () => {
+  const today = new Date().toISOString().split('T')[0];
+  const devices = getDeviceList();
+
+  // Find active members whose expiry_date < today
+  const expired = await Member.findAll({
+    where: {
+      status: 'active',
+      expiry_date: { [Op.lt]: today },
+      expiry_date: { [Op.ne]: null },
+    },
+  });
+
+  let removedCount = 0;
+  for (const member of expired) {
+    // Update DB status
+    await member.update({ status: 'expired' });
+
+    // Remove from all configured devices
+    if (member.fingerprint_id && devices.length) {
+      for (const device of devices) {
+        await removeFromDevice(device, member.fingerprint_id);
+      }
+    }
+    removedCount++;
+  }
+
+  return { removedCount, expiredMembers: expired.map((m) => m.name) };
+};
+
+/**
+ * Sync attendance from ALL configured devices
  */
 const syncAttendance = async () => {
   const devices = getDeviceList();
-  if (!devices.length) return { success: false, message: 'No devices configured' };
+  if (!devices.length) return { success: false, message: 'No devices configured in ESSL_DEVICES' };
+
+  // Run auto-expire before sync so newly expired members are blocked
+  await autoExpireAndRemove();
 
   let totalSynced = 0;
   let errors = [];
@@ -66,15 +126,13 @@ const syncAttendance = async () => {
         const dateStr = logTime.toISOString().split('T')[0];
         const timeStr = logTime.toTimeString().split(' ')[0];
 
-        // Find member with this fingerprint_id
         const member = await Member.findOne({ where: { fingerprint_id: fingerprintId } });
         if (!member) continue;
 
-        // Only log attendance if membership active
+        // Gate: only active, non-expired members get attendance logged
         if (member.status !== 'active') continue;
         if (member.expiry_date && new Date(member.expiry_date) < new Date()) continue;
 
-        // Upsert attendance
         const [att, created] = await Attendance.findOrCreate({
           where: { member_id: member.id, date: dateStr },
           defaults: {
@@ -103,9 +161,6 @@ const syncAttendance = async () => {
   };
 };
 
-/**
- * Mark manual attendance
- */
 const markManualAttendance = async (memberId, date) => {
   const member = await Member.findByPk(memberId);
   if (!member) throw new Error('Member not found');
@@ -125,4 +180,4 @@ const markManualAttendance = async (memberId, date) => {
   return att;
 };
 
-module.exports = { syncAttendance, markManualAttendance, getDeviceList };
+module.exports = { syncAttendance, markManualAttendance, getDeviceList, autoExpireAndRemove, enrollOnDevice, removeFromDevice };
