@@ -1,0 +1,154 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="fw-700 mb-1">Monthly Reports</h5>
+    <p class="text-muted small mb-0">Revenue, members, and attendance analytics</p>
+  </div>
+  <form class="d-flex gap-2" method="GET">
+    <select name="month" class="form-select form-select-sm" style="width:130px">
+      <% ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].forEach((m,i) => { %>
+        <option value="<%= i+1 %>" <%= month === i+1 ? 'selected' : '' %>><%= m %></option>
+      <% }) %>
+    </select>
+    <select name="year" class="form-select form-select-sm" style="width:100px">
+      <% for(let y = new Date().getFullYear(); y >= new Date().getFullYear()-3; y--) { %>
+        <option value="<%= y %>" <%= year === y ? 'selected' : '' %>><%= y %></option>
+      <% } %>
+    </select>
+    <button class="btn btn-primary btn-sm px-3">View</button>
+  </form>
+</div>
+
+<!-- Revenue Summary -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card stat-green">
+      <div class="stat-icon"><i class="bi bi-currency-rupee"></i></div>
+      <div class="stat-info">
+        <div class="stat-value">₹<%= totalRevenue.toLocaleString('en-IN') %></div>
+        <div class="stat-label">Total Revenue</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card stat-red">
+      <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
+      <div class="stat-info">
+        <div class="stat-value">₹<%= parseFloat(totalDue || 0).toLocaleString('en-IN') %></div>
+        <div class="stat-label">Pending Dues</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card stat-blue">
+      <div class="stat-icon"><i class="bi bi-person-plus-fill"></i></div>
+      <div class="stat-info">
+        <div class="stat-value"><%= newMembers %></div>
+        <div class="stat-label">New Members</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card stat-purple">
+      <div class="stat-icon"><i class="bi bi-calendar-check-fill"></i></div>
+      <div class="stat-info">
+        <div class="stat-value"><%= totalAttendance %></div>
+        <div class="stat-label">Total Check-ins</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Revenue by mode -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-transparent"><h6 class="fw-700 mb-0"><i class="bi bi-pie-chart-fill me-2 text-success"></i>Revenue by Mode</h6></div>
+      <div class="card-body">
+        <canvas id="revenuePie" height="220"></canvas>
+        <div class="mt-3">
+          <% revenueByMode.forEach(r => { %>
+          <div class="d-flex justify-content-between align-items-center mb-2 small">
+            <span class="text-muted"><%= r.payment_mode %></span>
+            <div class="text-end">
+              <span class="fw-700 text-success">₹<%= parseFloat(r.total).toLocaleString('en-IN') %></span>
+              <span class="text-muted ms-2">(<%= r.count %> txn)</span>
+            </div>
+          </div>
+          <% }) %>
+          <% if (!revenueByMode.length) { %><p class="text-center text-muted small">No revenue this month</p><% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Member Stats -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-transparent"><h6 class="fw-700 mb-0"><i class="bi bi-people-fill me-2 text-primary"></i>Member Overview</h6></div>
+      <div class="card-body">
+        <div class="report-stat-row"><div class="report-stat-label"><i class="bi bi-person-plus text-success me-2"></i>New Members</div><div class="report-stat-val text-success fw-700"><%= newMembers %></div></div>
+        <div class="report-stat-row"><div class="report-stat-label"><i class="bi bi-arrow-repeat text-info me-2"></i>Renewals</div><div class="report-stat-val text-info fw-700"><%= renewals %></div></div>
+        <div class="report-stat-row"><div class="report-stat-label"><i class="bi bi-person-check text-primary me-2"></i>Active Now</div><div class="report-stat-val text-primary fw-700"><%= activeMembers %></div></div>
+        <div class="report-stat-row"><div class="report-stat-label"><i class="bi bi-person-x text-danger me-2"></i>Expired</div><div class="report-stat-val text-danger fw-700"><%= expiredMembers %></div></div>
+        <hr class="my-3"/>
+        <h6 class="fw-700 small mb-3">Top Plans This Month</h6>
+        <% topPlans.forEach(tp => { %>
+        <div class="d-flex justify-content-between small mb-2">
+          <span class="text-muted"><%= tp.plan?.name || '—' %></span>
+          <span class="fw-600"><%= tp.dataValues?.count || 0 %> sold · ₹<%= parseFloat(tp.dataValues?.revenue || 0).toLocaleString('en-IN') %></span>
+        </div>
+        <% }) %>
+        <% if (!topPlans.length) { %><p class="text-center text-muted small">No plan sales this month</p><% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Attendance Chart -->
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-transparent"><h6 class="fw-700 mb-0"><i class="bi bi-bar-chart-fill me-2 text-purple"></i>Daily Attendance</h6></div>
+      <div class="card-body">
+        <canvas id="attendanceBar" height="250"></canvas>
+        <div class="d-flex justify-content-between mt-3 small text-muted">
+          <span>Total: <strong class="text-dark"><%= totalAttendance %></strong></span>
+          <span>Daily Avg: <strong class="text-dark"><%= avgAttendance %></strong></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const attData = <%- attendanceData %>;
+const revData = <%- JSON.stringify(revenueByMode) %>;
+
+// Attendance bar chart
+const attCtx = document.getElementById('attendanceBar').getContext('2d');
+new Chart(attCtx, {
+  type: 'bar',
+  data: {
+    labels: attData.map(d => {
+      const date = new Date(d.date);
+      return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    }),
+    datasets: [{ label: 'Check-ins', data: attData.map(d => d.count), backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 4, borderSkipped: false }]
+  },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { maxRotation: 45, font: { size: 9 } } } } }
+});
+
+// Revenue pie chart
+if (revData.length) {
+  const pieCtx = document.getElementById('revenuePie').getContext('2d');
+  new Chart(pieCtx, {
+    type: 'doughnut',
+    data: {
+      labels: revData.map(r => r.payment_mode),
+      datasets: [{ data: revData.map(r => parseFloat(r.total)), backgroundColor: ['#6366f1','#10b981','#f59e0b','#ef4444'], borderWidth: 0 }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+  });
+}
+</script>
+<%- include('../partials/footer') %>

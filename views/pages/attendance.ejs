@@ -1,0 +1,117 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="fw-700 mb-1">Attendance Tracking</h5>
+    <p class="text-muted small mb-0">Biometric & manual attendance log</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#manualModal">
+      <i class="bi bi-person-check me-1"></i>Manual
+    </button>
+    <form action="/attendance/sync" method="POST" class="d-inline">
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-fingerprint me-1"></i>Sync Biometric
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Date Filter -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-2">
+    <form class="d-flex gap-2 align-items-center" method="GET">
+      <label class="text-muted small fw-600 mb-0">Date:</label>
+      <input type="date" name="date" class="form-control" style="width:auto" value="<%= date %>"/>
+      <button class="btn btn-primary btn-sm" type="submit">View</button>
+      <a href="/attendance" class="btn btn-outline-secondary btn-sm">Today</a>
+      <span class="ms-auto badge bg-primary-subtle text-primary px-3 py-2">
+        <i class="bi bi-people-fill me-1"></i><%= records.length %> Present
+      </span>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr><th>#</th><th>Member</th><th>Member ID</th><th>Check In</th><th>Check Out</th><th>Source</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <% if (!records.length) { %>
+            <tr><td colspan="7" class="text-center text-muted py-5">
+              <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>No attendance records for this date
+            </td></tr>
+          <% } %>
+          <% records.forEach((r, i) => { %>
+          <tr>
+            <td class="text-muted small"><%= i + 1 %></td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="att-avatar"><%= (r.member?.name || '?')[0].toUpperCase() %></div>
+                <div class="fw-600 small"><%= r.member?.name || '—' %></div>
+              </div>
+            </td>
+            <td><span class="badge bg-light text-dark small"><%= r.member?.member_id || '—' %></span></td>
+            <td><span class="badge bg-success-subtle text-success"><i class="bi bi-box-arrow-in-right me-1"></i><%= r.check_in || '—' %></span></td>
+            <td>
+              <% if (r.check_out) { %>
+                <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-box-arrow-right me-1"></i><%= r.check_out %></span>
+              <% } else { %>
+                <span class="text-muted small">—</span>
+              <% } %>
+            </td>
+            <td>
+              <span class="badge <%= r.source === 'biometric' ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning' %>">
+                <i class="bi bi-<%= r.source === 'biometric' ? 'fingerprint' : 'hand-index' %> me-1"></i><%= r.source %>
+              </span>
+            </td>
+            <td>
+              <form action="/attendance/<%= r.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Remove record?')">
+                <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Manual Attendance Modal -->
+<div class="modal fade" id="manualModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-700"><i class="bi bi-person-check me-2 text-primary"></i>Manual Attendance</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/attendance/manual" method="POST">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-600">Select Member *</label>
+            <select name="member_id" class="form-select" required>
+              <option value="">Choose member...</option>
+              <% members.forEach(m => { %>
+                <option value="<%= m.id %>"><%= m.name %> (<%= m.member_id %>)</option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-600">Date</label>
+            <input type="date" name="date" class="form-control" value="<%= date %>"/>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Mark Present</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

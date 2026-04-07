@@ -1,0 +1,8 @@
+node_modules/
+.env
+public/uploads/members/*.jpg
+public/uploads/members/*.png
+public/uploads/members/*.webp
+*.log
+.DS_Store
+node_modules/

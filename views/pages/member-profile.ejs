@@ -1,0 +1,74 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <a href="/members" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+  <div class="d-flex gap-2">
+    <a href="tel:<%= member.phone %>" class="btn btn-outline-primary"><i class="bi bi-telephone-fill me-1"></i>Call</a>
+    <a href="https://wa.me/91<%= member.phone.replace(/\D/g,'') %>" target="_blank" class="btn btn-success"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>
+    <a href="/members/<%= member.id %>/edit" class="btn btn-warning"><i class="bi bi-pencil me-1"></i>Edit</a>
+    <a href="/billing/new?member_id=<%= member.id %>" class="btn btn-primary"><i class="bi bi-receipt me-1"></i>Renew</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm text-center p-4">
+      <% if (member.photo) { %>
+        <img src="<%= member.photo %>" class="rounded-circle mx-auto mb-3" style="width:100px;height:100px;object-fit:cover"/>
+      <% } else { %>
+        <div class="member-avatar-lg mx-auto mb-3"><%= member.name[0].toUpperCase() %></div>
+      <% } %>
+      <h5 class="fw-700 mb-1"><%= member.name %></h5>
+      <p class="text-muted small mb-2"><%= member.member_id %></p>
+      <% const isExpired = member.expiry_date && new Date(member.expiry_date) < new Date(today); %>
+      <span class="badge <%= isExpired ? 'bg-danger' : member.status === 'active' ? 'bg-success' : 'bg-warning text-dark' %> px-3 py-2">
+        <i class="bi bi-circle-fill me-1" style="font-size:8px"></i><%= isExpired ? 'Expired' : member.status %>
+      </span>
+      <hr class="my-3"/>
+      <div class="text-start small">
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Phone</span><span class="fw-600"><%= member.phone %></span></div>
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Gender</span><span><%= member.gender %></span></div>
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Blood Group</span><span><%= member.blood_group || '—' %></span></div>
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Plan</span><span class="fw-600 text-primary"><%= member.plan?.name || '—' %></span></div>
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Joined</span><span><%= member.join_date ? new Date(member.join_date).toLocaleDateString('en-IN') : '—' %></span></div>
+        <div class="d-flex justify-content-between"><span class="text-muted">Expires</span>
+          <span class="<%= isExpired ? 'text-danger fw-700' : 'text-success fw-600' %>">
+            <%= member.expiry_date ? new Date(member.expiry_date).toLocaleDateString('en-IN') : '—' %>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent"><h6 class="fw-700 mb-0"><i class="bi bi-clock-history me-2 text-primary"></i>Payment History</h6></div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light"><tr><th>Invoice</th><th>Plan</th><th>Amount</th><th>Paid</th><th>Due</th><th>Mode</th><th>Date</th></tr></thead>
+            <tbody>
+              <% if (!member.payments.length) { %>
+                <tr><td colspan="7" class="text-center text-muted py-4">No payment records</td></tr>
+              <% } %>
+              <% member.payments.forEach(p => { %>
+              <tr>
+                <td class="small fw-600"><%= p.invoice_no %></td>
+                <td class="small"><%= p.plan?.name || '—' %></td>
+                <td class="small">₹<%= parseFloat(p.final_amount).toLocaleString('en-IN') %></td>
+                <td class="small text-success fw-600">₹<%= parseFloat(p.paid_amount).toLocaleString('en-IN') %></td>
+                <td class="small <%= parseFloat(p.due_amount) > 0 ? 'text-danger fw-600' : 'text-muted' %>">
+                  ₹<%= parseFloat(p.due_amount).toLocaleString('en-IN') %>
+                </td>
+                <td><span class="badge bg-light text-dark small"><%= p.payment_mode %></span></td>
+                <td class="small text-muted"><%= new Date(p.payment_date).toLocaleDateString('en-IN') %></td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

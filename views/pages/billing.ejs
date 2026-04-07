@@ -1,0 +1,81 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="fw-700 mb-1">Billing & Payments</h5>
+    <p class="text-muted small mb-0">All payment records</p>
+  </div>
+  <a href="/billing/new" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>New Bill</a>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-2">
+    <form class="row g-2" method="GET">
+      <div class="col-md-5">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" name="search" class="form-control" placeholder="Search member name..." value="<%= search || '' %>"/>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <select name="mode" class="form-select">
+          <option value="">All Modes</option>
+          <% ['Cash','UPI','Card','Bank Transfer'].forEach(m => { %>
+            <option value="<%= m %>" <%= mode === m ? 'selected' : '' %>><%= m %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-primary" type="submit">Filter</button>
+        <a href="/billing" class="btn btn-outline-secondary ms-1">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr><th>Invoice</th><th>Member</th><th>Plan</th><th>Original</th><th>Discount</th><th>Paid</th><th>Due</th><th>Mode</th><th>Date</th><th></th></tr>
+        </thead>
+        <tbody>
+          <% if (!payments.length) { %>
+            <tr><td colspan="10" class="text-center text-muted py-5"><i class="bi bi-receipt fs-1 d-block mb-2"></i>No payments found</td></tr>
+          <% } %>
+          <% payments.forEach(p => { %>
+          <tr>
+            <td class="small fw-600 text-primary"><%= p.invoice_no %></td>
+            <td>
+              <div class="fw-600 small"><%= p.member?.name || '—' %></div>
+              <div class="text-muted" style="font-size:11px"><%= p.member?.phone || '' %></div>
+            </td>
+            <td class="small"><%= p.plan?.name || '—' %></td>
+            <td class="small text-muted">₹<%= parseFloat(p.original_amount).toLocaleString('en-IN') %></td>
+            <td class="small text-danger">
+              <% if (parseFloat(p.discount_amount) > 0) { %>
+                -₹<%= parseFloat(p.discount_amount).toLocaleString('en-IN') %>
+                <% if (p.offer) { %><div style="font-size:10px" class="text-info"><%= p.offer.name %></div><% } %>
+              <% } else { %>—<% } %>
+            </td>
+            <td class="fw-700 text-success">₹<%= parseFloat(p.paid_amount).toLocaleString('en-IN') %></td>
+            <td class="<%= parseFloat(p.due_amount) > 0 ? 'text-danger fw-600' : 'text-muted' %> small">
+              ₹<%= parseFloat(p.due_amount).toLocaleString('en-IN') %>
+            </td>
+            <td><span class="badge bg-light text-dark small"><%= p.payment_mode %></span></td>
+            <td class="small text-muted"><%= new Date(p.payment_date).toLocaleDateString('en-IN') %></td>
+            <td>
+              <form action="/billing/<%= p.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Delete this payment?')">
+                <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

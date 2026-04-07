@@ -1,0 +1,154 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="fw-700 mb-1"><%= member ? 'Edit Member' : 'Add New Member' %></h5>
+    <p class="text-muted small mb-0"><a href="/members" class="text-decoration-none">Members</a> / <%= member ? member.name : 'New' %></p>
+  </div>
+  <a href="/members" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+
+<form action="<%= member ? '/members/' + member.id + '/update' : '/members' %>" method="POST" enctype="multipart/form-data">
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-bottom"><h6 class="fw-700 mb-0"><i class="bi bi-person-badge me-2 text-primary"></i>Personal Information</h6></div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-600">Full Name <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control" value="<%= member?.name || '' %>" required/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Phone <span class="text-danger">*</span></label>
+              <input type="tel" name="phone" class="form-control" value="<%= member?.phone || '' %>" required/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Email</label>
+              <input type="email" name="email" class="form-control" value="<%= member?.email || '' %>"/>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-600">Gender</label>
+              <select name="gender" class="form-select">
+                <% ['Male','Female','Other'].forEach(g => { %>
+                  <option value="<%= g %>" <%= member?.gender === g ? 'selected' : '' %>><%= g %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-600">Date of Birth</label>
+              <input type="date" name="dob" class="form-control" value="<%= member?.dob || '' %>"/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Blood Group</label>
+              <select name="blood_group" class="form-select">
+                <option value="">Select</option>
+                <% ['A+','A-','B+','B-','AB+','AB-','O+','O-'].forEach(bg => { %>
+                  <option value="<%= bg %>" <%= member?.blood_group === bg ? 'selected' : '' %>><%= bg %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Emergency Contact</label>
+              <input type="tel" name="emergency_contact" class="form-control" value="<%= member?.emergency_contact || '' %>"/>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-600">Address</label>
+              <textarea name="address" class="form-control" rows="2"><%= member?.address || '' %></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-bottom"><h6 class="fw-700 mb-0"><i class="bi bi-calendar-check me-2 text-success"></i>Membership Details</h6></div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-600">Join Date</label>
+              <input type="date" name="join_date" class="form-control" value="<%= member?.join_date || new Date().toISOString().split('T')[0] %>"/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Expiry Date</label>
+              <input type="date" name="expiry_date" class="form-control" value="<%= member?.expiry_date || '' %>"/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Plan</label>
+              <select name="plan_id" class="form-select">
+                <option value="">Select Plan</option>
+                <% plans.forEach(p => { %>
+                  <option value="<%= p.id %>" <%= member?.plan_id == p.id ? 'selected' : '' %>>
+                    <%= p.name %> (₹<%= p.price %> / <%= p.duration_days %>d)
+                  </option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Fingerprint ID (eSSL)</label>
+              <input type="text" name="fingerprint_id" class="form-control" value="<%= member?.fingerprint_id || '' %>" placeholder="Device user ID"/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Status</label>
+              <select name="status" class="form-select">
+                <option value="active" <%= member?.status === 'active' ? 'selected' : '' %>>Active</option>
+                <option value="expired" <%= member?.status === 'expired' ? 'selected' : '' %>>Expired</option>
+                <option value="suspended" <%= member?.status === 'suspended' ? 'selected' : '' %>>Suspended</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-600">Notes</label>
+              <textarea name="notes" class="form-control" rows="2"><%= member?.notes || '' %></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-bottom"><h6 class="fw-700 mb-0"><i class="bi bi-image me-2 text-info"></i>Member Photo</h6></div>
+        <div class="card-body text-center">
+          <div class="photo-preview mb-3" id="photoPreview">
+            <% if (member?.photo) { %>
+              <img src="<%= member.photo %>" id="previewImg" class="img-fluid rounded-circle" style="width:120px;height:120px;object-fit:cover;"/>
+            <% } else { %>
+              <div class="photo-placeholder" id="photoPlaceholder">
+                <i class="bi bi-person-circle" style="font-size:80px;color:#ccc"></i>
+              </div>
+              <img id="previewImg" class="img-fluid rounded-circle d-none" style="width:120px;height:120px;object-fit:cover;"/>
+            <% } %>
+          </div>
+          <input type="file" name="photo" id="photoInput" class="d-none" accept="image/*" onchange="previewPhoto(this)"/>
+          <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('photoInput').click()">
+            <i class="bi bi-camera me-1"></i>Choose Photo
+          </button>
+          <p class="text-muted small mt-2 mb-0">Max 2MB, JPG/PNG</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary px-4">
+      <i class="bi bi-check-lg me-1"></i><%= member ? 'Update Member' : 'Save Member' %>
+    </button>
+    <a href="/members" class="btn btn-outline-secondary px-4">Cancel</a>
+  </div>
+</form>
+
+<script>
+function previewPhoto(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('previewImg');
+      const ph = document.getElementById('photoPlaceholder');
+      img.src = e.target.result;
+      img.classList.remove('d-none');
+      if (ph) ph.classList.add('d-none');
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+<%- include('../partials/footer') %>

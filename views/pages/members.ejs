@@ -1,0 +1,102 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="fw-700 mb-1">Member Management</h5>
+    <p class="text-muted small mb-0">Manage all gym members</p>
+  </div>
+  <a href="/members/add" class="btn btn-primary"><i class="bi bi-person-plus-fill me-2"></i>Add Member</a>
+</div>
+
+<!-- Search/Filter -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3">
+    <form class="row g-2" method="GET">
+      <div class="col-md-5">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" name="search" class="form-control" placeholder="Search by name, phone, ID..." value="<%= search || '' %>"/>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <select name="status" class="form-select">
+          <option value="">All Status</option>
+          <option value="active" <%= status === 'active' ? 'selected' : '' %>>Active</option>
+          <option value="expired" <%= status === 'expired' ? 'selected' : '' %>>Expired</option>
+          <option value="suspended" <%= status === 'suspended' ? 'selected' : '' %>>Suspended</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-funnel me-1"></i>Filter</button>
+        <a href="/members" class="btn btn-outline-secondary ms-1">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Member</th><th>Phone</th><th>Plan</th><th>Join Date</th><th>Expiry</th><th>Status</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!members.length) { %>
+            <tr><td colspan="7" class="text-center text-muted py-5"><i class="bi bi-people fs-1 d-block mb-2"></i>No members found</td></tr>
+          <% } %>
+          <% members.forEach(m => { %>
+          <% const isExpired = m.expiry_date && new Date(m.expiry_date) < new Date(); %>
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <% if (m.photo) { %>
+                  <img src="<%= m.photo %>" class="member-thumb" alt=""/>
+                <% } else { %>
+                  <div class="member-avatar-sm"><%= m.name[0].toUpperCase() %></div>
+                <% } %>
+                <div>
+                  <div class="fw-600"><%= m.name %></div>
+                  <div class="text-muted small"><%= m.member_id %></div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <a href="tel:<%= m.phone %>" class="text-decoration-none text-dark"><%= m.phone %></a><br/>
+              <a href="https://wa.me/91<%= m.phone.replace(/\D/g,'') %>" target="_blank" class="badge bg-success-subtle text-success small"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>
+            </td>
+            <td><span class="badge bg-info-subtle text-info"><%= m.plan?.name || 'No Plan' %></span></td>
+            <td class="small"><%= m.join_date ? new Date(m.join_date).toLocaleDateString('en-IN') : '—' %></td>
+            <td>
+              <% if (m.expiry_date) { %>
+                <span class="badge <%= isExpired ? 'bg-danger' : 'bg-success' %>">
+                  <%= new Date(m.expiry_date).toLocaleDateString('en-IN') %>
+                </span>
+                <% if (isExpired) { %>
+                  <a href="/billing/new?member_id=<%= m.id %>" class="btn btn-xs btn-danger ms-1" style="font-size:10px;padding:2px 6px">Renew</a>
+                <% } %>
+              <% } else { %>—<% } %>
+            </td>
+            <td>
+              <span class="badge <%= m.status === 'active' && !isExpired ? 'bg-success' : m.status === 'suspended' ? 'bg-warning text-dark' : 'bg-danger' %>">
+                <%= isExpired ? 'Expired' : m.status.charAt(0).toUpperCase() + m.status.slice(1) %>
+              </span>
+            </td>
+            <td>
+              <a href="/members/<%= m.id %>" class="btn btn-sm btn-outline-primary me-1" title="View"><i class="bi bi-eye"></i></a>
+              <a href="/members/<%= m.id %>/edit" class="btn btn-sm btn-outline-warning me-1" title="Edit"><i class="bi bi-pencil"></i></a>
+              <form action="/members/<%= m.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Delete this member?')">
+                <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

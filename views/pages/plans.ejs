@@ -1,0 +1,101 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="fw-700 mb-1">Membership Plans</h5>
+    <p class="text-muted small mb-0">Manage gym membership plans</p>
+  </div>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPlanModal">
+    <i class="bi bi-plus-lg me-1"></i>Add Plan
+  </button>
+</div>
+
+<div class="row g-3 mb-4">
+  <% plans.forEach(p => { %>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm plan-card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h5 class="fw-700 mb-1"><%= p.name %></h5>
+            <span class="badge <%= p.is_active ? 'bg-success' : 'bg-danger' %>"><%= p.is_active ? 'Active' : 'Inactive' %></span>
+          </div>
+          <div class="plan-price">₹<%= parseFloat(p.price).toLocaleString('en-IN') %></div>
+        </div>
+        <p class="text-muted small mb-2"><i class="bi bi-calendar3 me-1"></i><strong><%= p.duration_days %></strong> days validity</p>
+        <% if (p.description) { %><p class="text-muted small mb-3"><%= p.description %></p><% } %>
+        <div class="d-flex gap-2 mt-auto">
+          <button class="btn btn-sm btn-outline-warning flex-grow-1" onclick="editPlan(<%= p.id %>)"><i class="bi bi-pencil me-1"></i>Edit</button>
+          <form action="/plans/<%= p.id %>/delete" method="POST" onsubmit="return confirm('Delete plan?')">
+            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  <% }) %>
+  <% if (!plans.length) { %>
+  <div class="col-12 text-center text-muted py-5">
+    <i class="bi bi-card-list fs-1 d-block mb-2"></i>No plans yet. Add your first plan!
+  </div>
+  <% } %>
+</div>
+
+<!-- Add Modal -->
+<div class="modal fade" id="addPlanModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-700"><i class="bi bi-card-list me-2 text-primary"></i>Add New Plan</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/plans" method="POST">
+        <div class="modal-body">
+          <div class="mb-3"><label class="form-label fw-600">Plan Name *</label><input type="text" name="name" class="form-control" placeholder="e.g. Monthly, Quarterly" required/></div>
+          <div class="mb-3"><label class="form-label fw-600">Price (₹) *</label><div class="input-group"><span class="input-group-text">₹</span><input type="number" name="price" class="form-control" step="0.01" required/></div></div>
+          <div class="mb-3"><label class="form-label fw-600">Duration (Days) *</label><input type="number" name="duration_days" class="form-control" required/></div>
+          <div class="mb-3"><label class="form-label fw-600">Description</label><textarea name="description" class="form-control" rows="2"></textarea></div>
+          <div class="mb-3"><label class="form-label fw-600">Status</label><select name="is_active" class="form-select"><option value="1">Active</option><option value="0">Inactive</option></select></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-primary">Save Plan</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editPlanModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-700"><i class="bi bi-pencil me-2 text-warning"></i>Edit Plan</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="editPlanForm" method="POST">
+        <div class="modal-body">
+          <div class="mb-3"><label class="form-label fw-600">Plan Name *</label><input type="text" name="name" id="ep_name" class="form-control" required/></div>
+          <div class="mb-3"><label class="form-label fw-600">Price (₹) *</label><div class="input-group"><span class="input-group-text">₹</span><input type="number" name="price" id="ep_price" class="form-control" step="0.01" required/></div></div>
+          <div class="mb-3"><label class="form-label fw-600">Duration (Days) *</label><input type="number" name="duration_days" id="ep_days" class="form-control" required/></div>
+          <div class="mb-3"><label class="form-label fw-600">Description</label><textarea name="description" id="ep_desc" class="form-control" rows="2"></textarea></div>
+          <div class="mb-3"><label class="form-label fw-600">Status</label><select name="is_active" id="ep_active" class="form-select"><option value="1">Active</option><option value="0">Inactive</option></select></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-warning">Update Plan</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+async function editPlan(id) {
+  const res = await fetch(`/plans/${id}/json`);
+  const p = await res.json();
+  document.getElementById('ep_name').value = p.name;
+  document.getElementById('ep_price').value = p.price;
+  document.getElementById('ep_days').value = p.duration_days;
+  document.getElementById('ep_desc').value = p.description || '';
+  document.getElementById('ep_active').value = p.is_active ? '1' : '0';
+  document.getElementById('editPlanForm').action = `/plans/${id}/update`;
+  new bootstrap.Modal(document.getElementById('editPlanModal')).show();
+}
+</script>
+<%- include('../partials/footer') %>

@@ -1,0 +1,198 @@
+<%- include('../partials/header') %>
+
+<!-- Stat Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-card stat-blue">
+      <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+      <div class="stat-info">
+        <div class="stat-value"><%= stats.totalMembers || 0 %></div>
+        <div class="stat-label">Total Members</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card stat-green">
+      <div class="stat-icon"><i class="bi bi-person-check-fill"></i></div>
+      <div class="stat-info">
+        <div class="stat-value"><%= stats.activeMembers || 0 %></div>
+        <div class="stat-label">Active Members</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card stat-orange">
+      <div class="stat-icon"><i class="bi bi-currency-rupee"></i></div>
+      <div class="stat-info">
+        <div class="stat-value">₹<%= (stats.monthlyRevenue || 0).toLocaleString('en-IN') %></div>
+        <div class="stat-label">Monthly Revenue</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card stat-purple">
+      <div class="stat-icon"><i class="bi bi-calendar-check-fill"></i></div>
+      <div class="stat-info">
+        <div class="stat-value"><%= stats.todayAttendance || 0 %></div>
+        <div class="stat-label">Today's Attendance</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Second row -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-card stat-red">
+      <div class="stat-icon"><i class="bi bi-person-x-fill"></i></div>
+      <div class="stat-info">
+        <div class="stat-value"><%= stats.expiredMembers || 0 %></div>
+        <div class="stat-label">Expired</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-card stat-teal">
+      <div class="stat-icon"><i class="bi bi-chat-dots-fill"></i></div>
+      <div class="stat-info">
+        <div class="stat-value"><%= stats.newEnquiries || 0 %></div>
+        <div class="stat-label">New Enquiries</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="quick-links w-100">
+          <a href="/members/add" class="btn btn-sm btn-primary me-2 mb-1"><i class="bi bi-person-plus me-1"></i>Add Member</a>
+          <a href="/billing/new" class="btn btn-sm btn-success me-2 mb-1"><i class="bi bi-receipt me-1"></i>New Bill</a>
+          <a href="/enquiry" class="btn btn-sm btn-info me-2 mb-1"><i class="bi bi-chat-left-dots me-1"></i>Enquiries</a>
+          <a href="/attendance" class="btn btn-sm btn-warning me-2 mb-1"><i class="bi bi-fingerprint me-1"></i>Attendance</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Attendance Chart -->
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0 pb-0">
+        <h6 class="fw-700 mb-0"><i class="bi bi-bar-chart-fill text-primary me-2"></i>Last 7 Days Attendance</h6>
+      </div>
+      <div class="card-body">
+        <canvas id="attendanceChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expiring Soon -->
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0 pb-0">
+        <h6 class="fw-700 mb-0"><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Expiring Soon (7 days)</h6>
+      </div>
+      <div class="card-body p-0">
+        <% if (expiringSoon.length === 0) { %>
+          <div class="text-center text-muted py-4"><i class="bi bi-check-circle fs-2 text-success d-block mb-2"></i>No members expiring soon!</div>
+        <% } else { %>
+          <div class="list-group list-group-flush">
+            <% expiringSoon.forEach(m => { %>
+              <div class="list-group-item border-0 d-flex align-items-center justify-content-between py-2 px-3">
+                <div>
+                  <div class="fw-600 small"><%= m.name %></div>
+                  <div class="text-muted" style="font-size:12px"><%= m.phone %></div>
+                </div>
+                <div class="text-end">
+                  <span class="badge bg-danger-subtle text-danger small"><%= new Date(m.expiry_date).toLocaleDateString('en-IN') %></span>
+                  <div class="mt-1">
+                    <a href="https://wa.me/91<%= m.phone.replace(/\D/g,'') %>" target="_blank" class="btn btn-xs btn-success me-1" style="font-size:10px;padding:2px 6px"><i class="bi bi-whatsapp"></i></a>
+                    <a href="/billing/new?member_id=<%= m.id %>" class="btn btn-xs btn-primary" style="font-size:10px;padding:2px 6px">Renew</a>
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Payments -->
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0 pb-0">
+        <h6 class="fw-700 mb-0"><i class="bi bi-receipt-cutoff text-success me-2"></i>Recent Payments</h6>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light"><tr><th>Member</th><th>Amount</th><th>Mode</th><th>Date</th></tr></thead>
+            <tbody>
+              <% recentPayments.forEach(p => { %>
+              <tr>
+                <td><div class="fw-600 small"><%= p.member?.name || '—' %></div><div class="text-muted" style="font-size:11px"><%= p.invoice_no %></div></td>
+                <td class="fw-700 text-success">₹<%= parseFloat(p.paid_amount).toLocaleString('en-IN') %></td>
+                <td><span class="badge bg-light text-dark"><%= p.payment_mode %></span></td>
+                <td class="small text-muted"><%= new Date(p.payment_date).toLocaleDateString('en-IN') %></td>
+              </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Today's Attendance -->
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0 pb-0">
+        <h6 class="fw-700 mb-0"><i class="bi bi-person-lines-fill text-info me-2"></i>Today Present</h6>
+      </div>
+      <div class="card-body p-0">
+        <% if (todayList.length === 0) { %>
+          <div class="text-center text-muted py-4"><i class="bi bi-calendar-x fs-2 d-block mb-2"></i>No attendance yet</div>
+        <% } else { %>
+          <div class="list-group list-group-flush">
+            <% todayList.forEach(a => { %>
+              <div class="list-group-item border-0 d-flex align-items-center gap-2 py-2 px-3">
+                <div class="att-avatar"><%= (a.member?.name || '?')[0].toUpperCase() %></div>
+                <div>
+                  <div class="fw-600 small"><%= a.member?.name || '—' %></div>
+                  <div class="text-muted" style="font-size:11px"><i class="bi bi-clock me-1"></i><%= a.check_in || '—' %></div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const chartData = <%- attendanceChart %>;
+const ctx = document.getElementById('attendanceChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: chartData.map(d => new Date(d.date).toLocaleDateString('en-IN', {day:'numeric',month:'short'})),
+    datasets: [{
+      label: 'Check-ins',
+      data: chartData.map(d => d.count),
+      backgroundColor: 'rgba(99,102,241,0.8)',
+      borderRadius: 6,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+  }
+});
+</script>
+
+<%- include('../partials/footer') %>

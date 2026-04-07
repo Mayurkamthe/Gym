@@ -1,0 +1,161 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="fw-700 mb-1">Create New Bill</h5>
+    <p class="text-muted small mb-0"><a href="/billing" class="text-decoration-none">Billing</a> / New</p>
+  </div>
+  <a href="/billing" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <form action="/billing" method="POST" id="billingForm">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent"><h6 class="fw-700 mb-0"><i class="bi bi-person-fill me-2 text-primary"></i>Member & Plan</h6></div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-600">Member *</label>
+              <select name="member_id" class="form-select" required>
+                <option value="">Select Member</option>
+                <% members.forEach(m => { %>
+                  <option value="<%= m.id %>" <%= selectedMemberId == m.id ? 'selected' : '' %>><%= m.name %> (<%= m.phone %>)</option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Plan *</label>
+              <select name="plan_id" class="form-select" id="planSelect" required onchange="recalculate()">
+                <option value="">Select Plan</option>
+                <% plans.forEach(p => { %>
+                  <option value="<%= p.id %>" data-price="<%= p.price %>" data-days="<%= p.duration_days %>"><%= p.name %> — ₹<%= p.price %> / <%= p.duration_days %> days</option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Offer / Discount</label>
+              <select name="offer_id" class="form-select" id="offerSelect" onchange="recalculate()">
+                <option value="">No Offer</option>
+                <% offers.forEach(o => { %>
+                  <option value="<%= o.id %>" data-type="<%= o.type %>" data-value="<%= o.value %>">
+                    <%= o.name %> (<%= o.type === 'flat' ? '₹' + o.value + ' OFF' : o.value + '% OFF' %>)
+                  </option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Payment Date *</label>
+              <input type="date" name="payment_date" class="form-control" value="<%= today %>" required/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent"><h6 class="fw-700 mb-0"><i class="bi bi-cash-stack me-2 text-success"></i>Payment Details</h6></div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-600">Payment Mode *</label>
+              <select name="payment_mode" class="form-select" required>
+                <% ['Cash','UPI','Card','Bank Transfer'].forEach(m => { %><option><%= m %></option><% }) %>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Amount Paid *</label>
+              <div class="input-group">
+                <span class="input-group-text">₹</span>
+                <input type="number" name="paid_amount" id="paidAmount" class="form-control" step="0.01" required/>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Transaction Reference</label>
+              <input type="text" name="transaction_ref" class="form-control" placeholder="UPI ID / Txn No."/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-600">Notes</label>
+              <input type="text" name="notes" class="form-control"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary px-5">
+        <i class="bi bi-check-circle me-1"></i>Generate Invoice
+      </button>
+    </form>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm sticky-top" style="top:80px">
+      <div class="card-header bg-primary text-white"><h6 class="fw-700 mb-0"><i class="bi bi-calculator me-2"></i>Bill Summary</h6></div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Plan Price</span>
+          <span class="fw-600" id="summaryOriginal">₹0</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Discount</span>
+          <span class="fw-600 text-danger" id="summaryDiscount">-₹0</span>
+        </div>
+        <hr/>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="fw-700">Total Payable</span>
+          <span class="fw-700 text-primary fs-5" id="summaryFinal">₹0</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Amount Paid</span>
+          <span class="fw-600 text-success" id="summaryPaid">₹0</span>
+        </div>
+        <div class="d-flex justify-content-between">
+          <span class="text-muted">Due Amount</span>
+          <span class="fw-600 text-danger" id="summaryDue">₹0</span>
+        </div>
+        <hr/>
+        <div class="d-flex justify-content-between small text-muted">
+          <span>Validity</span>
+          <span id="summaryDays">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function recalculate() {
+  const planSel = document.getElementById('planSelect');
+  const offerSel = document.getElementById('offerSelect');
+  const paidInput = document.getElementById('paidAmount');
+  const selectedPlan = planSel.options[planSel.selectedIndex];
+  const selectedOffer = offerSel.options[offerSel.selectedIndex];
+
+  if (!selectedPlan.value) return;
+
+  const price = parseFloat(selectedPlan.dataset.price) || 0;
+  const days = selectedPlan.dataset.days || '—';
+  let discount = 0;
+
+  if (selectedOffer.value) {
+    const type = selectedOffer.dataset.type;
+    const val = parseFloat(selectedOffer.dataset.value) || 0;
+    discount = type === 'flat' ? Math.min(val, price) : (price * val / 100);
+    discount = Math.round(discount * 100) / 100;
+  }
+
+  const final = Math.max(0, price - discount);
+  const paid = parseFloat(paidInput.value) || 0;
+  const due = Math.max(0, final - paid);
+
+  document.getElementById('summaryOriginal').textContent = '₹' + price.toLocaleString('en-IN');
+  document.getElementById('summaryDiscount').textContent = '-₹' + discount.toLocaleString('en-IN');
+  document.getElementById('summaryFinal').textContent = '₹' + final.toLocaleString('en-IN');
+  document.getElementById('summaryPaid').textContent = '₹' + paid.toLocaleString('en-IN');
+  document.getElementById('summaryDue').textContent = '₹' + due.toLocaleString('en-IN');
+  document.getElementById('summaryDays').textContent = days + ' days';
+
+  if (!paidInput.value) paidInput.value = final;
+}
+document.getElementById('paidAmount').addEventListener('input', recalculate);
+</script>
+<%- include('../partials/footer') %>
