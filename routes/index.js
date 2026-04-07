@@ -12,6 +12,7 @@ const billingC = require('../controllers/billingController');
 const attendanceC = require('../controllers/attendanceController');
 const reportC = require('../controllers/reportController');
 const settingsC = require('../controllers/settingsController');
+const fpC     = require('../controllers/fingerprintController');
 const upload = require('../config/multer');
 
 // Auth
@@ -71,6 +72,14 @@ router.post('/attendance/:id/delete', isAuthenticated, attendanceC.destroy);
 
 // Reports
 router.get('/reports', isAuthenticated, reportC.index);
+
+// Fingerprint
+router.get('/fingerprint/devices',          isAuthenticated, fpC.getDevices);
+router.post('/fingerprint/pull-users',      isAuthenticated, fpC.pullUsers);
+router.post('/fingerprint/enroll',          isAuthenticated, fpC.enroll);
+router.post('/fingerprint/sync',            isAuthenticated, fpC.sync);
+router.get('/fingerprint/member/:id',       isAuthenticated, fpC.getMemberFingerprint);
+router.post('/fingerprint/member/:id/clear',isAuthenticated, fpC.clearFingerprint);
 
 // Settings
 router.get('/settings', isAuthenticated, settingsC.index);

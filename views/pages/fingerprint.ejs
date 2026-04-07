@@ -1,0 +1,354 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="fw-700 mb-1"><i class="bi bi-fingerprint text-primary me-2"></i>Fingerprint Management</h5>
+    <p class="text-muted small mb-0">Pull fingerprint data from ZKTeco devices and link to members</p>
+  </div>
+</div>
+
+<% if (flash.success && flash.success.length) { %>
+  <div class="alert alert-success alert-dismissible fade show"><%= flash.success %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+<% } %>
+<% if (flash.error && flash.error.length) { %>
+  <div class="alert alert-danger alert-dismissible fade show"><%= flash.error %><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+<% } %>
+
+<div class="row g-4">
+
+  <!-- LEFT: Device Selection -->
+  <div class="col-lg-4">
+
+    <!-- TCP/IP Devices -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-bottom">
+        <h6 class="fw-700 mb-0"><i class="bi bi-hdd-network text-primary me-2"></i>TCP/IP Devices</h6>
+      </div>
+      <div class="card-body">
+        <% if (!tcpDevices.length) { %>
+          <p class="text-muted small mb-2">No TCP devices configured.</p>
+          <a href="/settings" class="btn btn-sm btn-outline-primary">Add in Settings</a>
+        <% } else { %>
+          <% tcpDevices.forEach(d => { %>
+          <div class="d-flex align-items-center justify-content-between p-2 border rounded mb-2">
+            <div>
+              <div class="fw-600 small"><i class="bi bi-hdd-network me-1 text-primary"></i><%= d.ip %></div>
+              <div class="text-muted" style="font-size:0.75rem;">Port: <%= d.port %></div>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="pullUsers('<%= d.str %>')">
+              <i class="bi bi-cloud-download me-1"></i>Pull Users
+            </button>
+          </div>
+          <% }) %>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- COM Ports -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="fw-700 mb-0"><i class="bi bi-usb-plug text-warning me-2"></i>COM / USB Ports</h6>
+        <button class="btn btn-sm btn-outline-secondary" onclick="refreshComPorts()">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+      <div class="card-body" id="comPortsList">
+        <% if (!comPorts.length) { %>
+          <p class="text-muted small mb-2">No COM ports detected.</p>
+          <p class="text-muted" style="font-size:0.72rem;">Connect your ZKTeco device via USB cable, then refresh.</p>
+        <% } else { %>
+          <% comPorts.forEach(p => { %>
+          <div class="border rounded p-2 mb-2">
+            <div class="fw-600 small"><i class="bi bi-usb-plug me-1 text-warning"></i><%= p.path %></div>
+            <div class="text-muted" style="font-size:0.72rem;"><%= p.description %></div>
+            <div class="d-flex align-items-center gap-2 mt-2">
+              <select class="form-select form-select-sm" style="width:100px;" id="baud-<%= p.path.replace(/[^a-z0-9]/gi,'_') %>">
+                <option value="9600">9600</option>
+                <option value="19200">19200</option>
+                <option value="38400">38400</option>
+                <option value="115200">115200</option>
+              </select>
+              <button class="btn btn-sm btn-warning" onclick="pullUsersSerial('<%= p.path %>', this)">
+                <i class="bi bi-cloud-download me-1"></i>Pull
+              </button>
+            </div>
+          </div>
+          <% }) %>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Manual COM Entry -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-bottom">
+        <h6 class="fw-700 mb-0"><i class="bi bi-terminal text-secondary me-2"></i>Manual Device Entry</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-2">
+          <label class="form-label small fw-600">Device Address</label>
+          <input type="text" class="form-control form-control-sm" id="manualDevice"
+                 placeholder="192.168.1.100:4370 or COM3:9600">
+          <div class="form-text">TCP: IP:PORT &nbsp;|&nbsp; Serial: COM3:9600</div>
+        </div>
+        <button class="btn btn-sm btn-primary w-100" onclick="pullUsersManual()">
+          <i class="bi bi-cloud-download me-1"></i>Pull Users from Device
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: Users from Device -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="fw-700 mb-0"><i class="bi bi-people me-2"></i>Device Users <span id="userCount" class="badge bg-primary ms-2 d-none"></span></h6>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-success d-none" id="syncAllBtn" onclick="syncAll()">
+            <i class="bi bi-arrow-repeat me-1"></i>Sync All to DB
+          </button>
+          <input type="text" class="form-control form-control-sm" id="searchUsers" placeholder="Search users..."
+                 style="width:160px;" oninput="filterUsers(this.value)">
+        </div>
+      </div>
+      <div class="card-body p-0" id="usersPanel">
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-fingerprint fs-1 d-block mb-2 text-secondary"></i>
+          Select a device and click "Pull Users" to load fingerprint users.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Enroll Modal -->
+<div class="modal fade" id="enrollModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h6 class="modal-title fw-700"><i class="bi bi-fingerprint me-2 text-primary"></i>Link Fingerprint to Member</h6>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Device User: <strong id="enrollUserId"></strong> — <span id="enrollUserName"></span></p>
+        <div class="mb-3">
+          <label class="form-label fw-600">Select Member</label>
+          <input type="text" class="form-control" id="memberSearch" placeholder="Search member by name or ID..."
+                 oninput="searchMembers(this.value)">
+        </div>
+        <div id="memberResults" class="border rounded" style="max-height:200px;overflow-y:auto;display:none;"></div>
+        <div id="selectedMemberInfo" class="alert alert-primary d-none mt-2 py-2 px-3 small"></div>
+      </div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" id="confirmEnrollBtn" onclick="confirmEnroll()" disabled>
+          <i class="bi bi-fingerprint me-1"></i>Link Fingerprint
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
+<script>
+let currentDevice = '';
+let allDeviceUsers = [];
+let selectedMemberId = null;
+let enrollingUserId = null;
+
+const enrollModal = new bootstrap.Modal(document.getElementById('enrollModal'));
+
+async function pullUsers(device) {
+  currentDevice = device;
+  showLoading();
+  try {
+    const res = await fetch('/fingerprint/pull-users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    allDeviceUsers = data.users;
+    renderUsers(data.users);
+    document.getElementById('userCount').textContent = data.total;
+    document.getElementById('userCount').classList.remove('d-none');
+    document.getElementById('syncAllBtn').classList.remove('d-none');
+  } catch (err) {
+    document.getElementById('usersPanel').innerHTML = `
+      <div class="alert alert-danger m-3"><i class="bi bi-exclamation-triangle me-2"></i>${err.message}</div>`;
+  }
+}
+
+function pullUsersSerial(port, btn) {
+  const baudId = 'baud-' + port.replace(/[^a-z0-9]/gi, '_');
+  const baud = document.getElementById(baudId)?.value || '9600';
+  pullUsers(`${port}:${baud}`);
+}
+
+function pullUsersManual() {
+  const device = document.getElementById('manualDevice').value.trim();
+  if (!device) return alert('Please enter a device address');
+  pullUsers(device);
+}
+
+function showLoading() {
+  document.getElementById('usersPanel').innerHTML = `
+    <div class="text-center text-muted py-5">
+      <div class="spinner-border text-primary mb-3"></div>
+      <p>Connecting to device and pulling users...</p>
+    </div>`;
+}
+
+function renderUsers(users) {
+  if (!users.length) {
+    document.getElementById('usersPanel').innerHTML = `
+      <div class="text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-2"></i>No users found on device.</div>`;
+    return;
+  }
+
+  const rows = users.map(u => `
+    <tr data-name="${(u.name||'').toLowerCase()}" data-uid="${u.userId}">
+      <td class="fw-600">${u.userId}</td>
+      <td>${u.name || '—'}</td>
+      <td>${u.cardno || '—'}</td>
+      <td>
+        ${u.linkedMember
+          ? `<span class="badge bg-success-subtle text-success border border-success-subtle">
+               <i class="bi bi-check-circle me-1"></i>${u.linkedMember.name} (${u.linkedMember.member_id})
+             </span>`
+          : `<span class="badge bg-secondary-subtle text-secondary">Not linked</span>`
+        }
+      </td>
+      <td>
+        <button class="btn btn-sm btn-outline-primary" onclick="openEnroll('${u.userId}', '${(u.name||'').replace(/'/g,"\\'")}')">
+          <i class="bi bi-fingerprint me-1"></i>Link
+        </button>
+      </td>
+    </tr>`).join('');
+
+  document.getElementById('usersPanel').innerHTML = `
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" id="usersTable">
+        <thead class="table-light">
+          <tr><th>User ID</th><th>Name</th><th>Card No</th><th>Linked Member</th><th>Action</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function filterUsers(query) {
+  const rows = document.querySelectorAll('#usersTable tbody tr');
+  rows.forEach(row => {
+    const name = row.dataset.name || '';
+    const uid  = row.dataset.uid  || '';
+    row.style.display = (name.includes(query.toLowerCase()) || uid.includes(query)) ? '' : 'none';
+  });
+}
+
+function openEnroll(userId, userName) {
+  enrollingUserId = userId;
+  selectedMemberId = null;
+  document.getElementById('enrollUserId').textContent = userId;
+  document.getElementById('enrollUserName').textContent = userName;
+  document.getElementById('memberSearch').value = '';
+  document.getElementById('memberResults').style.display = 'none';
+  document.getElementById('selectedMemberInfo').classList.add('d-none');
+  document.getElementById('confirmEnrollBtn').disabled = true;
+  enrollModal.show();
+}
+
+let memberSearchTimeout;
+function searchMembers(query) {
+  clearTimeout(memberSearchTimeout);
+  if (query.length < 2) { document.getElementById('memberResults').style.display = 'none'; return; }
+  memberSearchTimeout = setTimeout(async () => {
+    const res = await fetch(`/members?search=${encodeURIComponent(query)}&json=1`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const members = data.members || [];
+    if (!members.length) {
+      document.getElementById('memberResults').innerHTML = '<p class="text-muted small p-2 mb-0">No members found</p>';
+    } else {
+      document.getElementById('memberResults').innerHTML = members.map(m => `
+        <div class="p-2 border-bottom cursor-pointer member-result-item" style="cursor:pointer;"
+             onclick="selectMember(${m.id}, '${m.name.replace(/'/g,"\\'")}', '${m.member_id}')">
+          <div class="fw-600 small">${m.name}</div>
+          <div class="text-muted" style="font-size:0.72rem;">${m.member_id} · ${m.phone||''}</div>
+        </div>`).join('');
+    }
+    document.getElementById('memberResults').style.display = 'block';
+  }, 300);
+}
+
+function selectMember(id, name, memberId) {
+  selectedMemberId = id;
+  document.getElementById('memberSearch').value = `${name} (${memberId})`;
+  document.getElementById('memberResults').style.display = 'none';
+  document.getElementById('selectedMemberInfo').textContent = `Selected: ${name} — ${memberId}`;
+  document.getElementById('selectedMemberInfo').classList.remove('d-none');
+  document.getElementById('confirmEnrollBtn').disabled = false;
+}
+
+async function confirmEnroll() {
+  if (!selectedMemberId || !enrollingUserId) return;
+  document.getElementById('confirmEnrollBtn').disabled = true;
+  document.getElementById('confirmEnrollBtn').innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Linking...';
+  try {
+    const res = await fetch('/fingerprint/enroll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId: selectedMemberId, device: currentDevice, deviceUserId: enrollingUserId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      enrollModal.hide();
+      pullUsers(currentDevice); // refresh
+      showToast(`Fingerprint linked to ${data.member}`, 'success');
+    } else throw new Error(data.error);
+  } catch (err) {
+    showToast(err.message, 'danger');
+    document.getElementById('confirmEnrollBtn').disabled = false;
+    document.getElementById('confirmEnrollBtn').innerHTML = '<i class="bi bi-fingerprint me-1"></i>Link Fingerprint';
+  }
+}
+
+async function syncAll() {
+  if (!confirm(`Sync all ${allDeviceUsers.length} users from device to DB? This will update fingerprint data for all matched members.`)) return;
+  document.getElementById('syncAllBtn').disabled = true;
+  document.getElementById('syncAllBtn').innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Syncing...';
+  try {
+    const res = await fetch('/fingerprint/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device: currentDevice })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Synced! ${data.matched} matched, ${data.unmatched.length} unmatched.`, 'success');
+      pullUsers(currentDevice);
+    } else throw new Error(data.error);
+  } catch (err) {
+    showToast(err.message, 'danger');
+  } finally {
+    document.getElementById('syncAllBtn').disabled = false;
+    document.getElementById('syncAllBtn').innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Sync All to DB';
+  }
+}
+
+async function refreshComPorts() {
+  const res = await fetch('/fingerprint/devices');
+  window.location.reload();
+}
+
+function showToast(msg, type = 'success') {
+  const t = document.createElement('div');
+  t.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+  t.style.cssText = 'bottom:20px;right:20px;z-index:9999;min-width:280px;';
+  t.innerHTML = `${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+</script>

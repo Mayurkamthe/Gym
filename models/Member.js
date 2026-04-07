@@ -15,6 +15,9 @@ const Member = sequelize.define('Member', {
   expiry_date: { type: DataTypes.DATEONLY, allowNull: true },
   plan_id: { type: DataTypes.INTEGER, allowNull: true, references: { model: 'plans', key: 'id' } },
   fingerprint_id: { type: DataTypes.STRING(50), allowNull: true },
+  fingerprint_data: { type: DataTypes.TEXT('long'), allowNull: true },  // Base64 fingerprint template
+  fingerprint_enrolled_at: { type: DataTypes.DATE, allowNull: true },
+  fingerprint_device: { type: DataTypes.STRING(50), allowNull: true }, // IP:PORT or COM:BAUD that enrolled this member
   photo: { type: DataTypes.STRING(255), allowNull: true },
   emergency_contact: { type: DataTypes.STRING(15), allowNull: true },
   blood_group: {

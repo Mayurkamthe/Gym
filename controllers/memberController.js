@@ -21,6 +21,15 @@ const index = async (req, res) => {
   });
   const today = new Date().toISOString().split('T')[0];
   const plans = await Plan.findAll({ where: { is_active: true } });
+
+  // JSON response for fingerprint search
+  if (req.query.json === '1') {
+    return res.json({ members: members.map(m => ({
+      id: m.id, name: m.name, member_id: m.member_id,
+      phone: m.phone, fingerprint_id: m.fingerprint_id
+    })) });
+  }
+
   res.render('pages/members', { title: 'Members', members, plans, status, search, today });
 };
 
